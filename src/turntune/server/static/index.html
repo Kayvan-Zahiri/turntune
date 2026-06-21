@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Single-page UI: tradeoff curve + tuning sliders + caught-cutoff playback list.
+     No build step — served as-is by FastAPI. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>turntune</title>
+    <link rel="stylesheet" href="/vendor/uPlot.min.css" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>turntune <span id="meta-sub"></span></h1>
+      <p class="tagline">latency vs. cutoff — tune your endpointing policy</p>
+    </header>
+
+    <main>
+      <section id="curve-panel" class="panel">
+        <h2>Latency vs. cutoff</h2>
+        <div id="chart"></div>
+        <div id="summary"></div>
+      </section>
+
+      <section id="tune-panel" class="panel">
+        <h2>Tuning</h2>
+        <div class="field">
+          <label for="sweep-axis">Sweep axis (the curve)</label>
+          <select id="sweep-axis"></select>
+        </div>
+        <div id="sliders"></div>
+        <div id="counts"></div>
+      </section>
+
+      <section id="cutoffs-panel" class="panel">
+        <h2>Caught cutoffs <span id="cutoff-count" class="muted"></span></h2>
+        <p class="muted small">
+          Scenarios where the detector fired during a mid-turn pause (gray) before the
+          true end of turn (green). Red = where it fired. Press play to hear the talk-over.
+        </p>
+        <ol id="cutoff-list"></ol>
+      </section>
+    </main>
+
+    <script src="/vendor/uplot.iife.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

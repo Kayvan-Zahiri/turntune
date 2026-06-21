@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "turntune"
+version = "0.1.0"
+description = "Tune turn-taking in voice agents: see the latency-vs-cutoff tradeoff, hear where it talks over people, and dial in the endpointing policy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "turntune contributors" }]
+keywords = ["voice-agents", "turn-taking", "endpointing", "vad", "end-of-turn", "speech"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Kept deliberately small so a stranger can `pip install -e .` and run in minutes.
+# Note: Silero VAD runs via onnxruntime (small CPU wheels), NOT the silero-vad pip
+# package, which would pull in torch (hundreds of MB).
+dependencies = [
+    "numpy",
+    "onnxruntime",       # Silero VAD inference (CPU, no torch)
+    "soundfile",         # libsndfile wav IO + decode
+    "soxr",              # fast, high-quality resample to 16k mono
+    "datasets",          # stream livekit/eot-bench-data from Hugging Face
+    "huggingface-hub",   # model/dataset fetch + local cache
+    "fastapi",           # local web UI backend
+    "uvicorn[standard]", # ASGI server
+    "tqdm",              # first-run progress bar
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+# Documented seam only — NOT installed by default and NOT built in v0. A future
+# LiveKit-style semantic end-of-turn model would live behind this extra.
+semantic = ["transformers", "torch"]
+
+[project.scripts]
+turntune = "turntune.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/OWNER/turn-detection"
+Repository = "https://github.com/OWNER/turn-detection"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/turntune"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

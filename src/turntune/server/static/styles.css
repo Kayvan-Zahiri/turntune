@@ -1,0 +1,107 @@
+/* turntune UI — minimal, dependency-free layout. */
+
+:root {
+  --fg: #1a1a1a;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --cutoff: #dc2626;
+  --eot: #16a34a;
+  --hold: #d1d5db;
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  line-height: 1.45;
+}
+
+header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+header h1 { margin: 0; font-size: 1.3rem; }
+#meta-sub { font-size: 0.8rem; font-weight: 400; color: var(--muted); }
+.tagline { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
+
+main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.panel h2 { margin: 0 0 0.75rem; font-size: 1rem; }
+
+#curve-panel { grid-column: 1; }
+#tune-panel { grid-column: 2; grid-row: 1 / span 2; }
+#cutoffs-panel { grid-column: 1; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+
+/* summary headline */
+#summary { margin-top: 0.5rem; font-size: 0.9rem; }
+#summary .op { display: inline-block; margin-right: 1rem; }
+#summary b { color: var(--accent); }
+
+/* tuning sliders */
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+.field .val { float: right; font-weight: 400; color: var(--accent); font-variant-numeric: tabular-nums; }
+.field input[type="range"] { width: 100%; }
+.field select { width: 100%; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; }
+.field .help { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+
+#counts { margin-top: 1rem; font-size: 0.85rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+#counts .chip { padding: 0.15rem 0.5rem; border-radius: 999px; background: #f3f4f6; }
+#counts .chip b { font-variant-numeric: tabular-nums; }
+
+/* cutoff list */
+#cutoff-list { list-style: none; margin: 0; padding: 0; }
+#cutoff-list li { padding: 0.75rem 0; border-top: 1px solid var(--border); }
+.cut-head { font-size: 0.85rem; margin-bottom: 0.4rem; font-variant-numeric: tabular-nums; }
+.cut-head .id { font-family: ui-monospace, monospace; color: var(--muted); }
+
+.timeline {
+  position: relative; height: 22px; background: #f3f4f6;
+  border-radius: 4px; margin: 0.35rem 0; overflow: hidden;
+}
+.timeline .span { position: absolute; top: 0; bottom: 0; }
+.timeline .span.hold { background: var(--hold); }
+.timeline .span.eot { background: rgba(22,163,74,0.25); }
+.timeline .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; }
+.timeline .mark.fired { background: var(--cutoff); }
+.timeline .mark.true { background: var(--eot); }
+
+audio { width: 100%; height: 32px; margin-top: 0.25rem; }
+
+.legend { font-size: 0.72rem; color: var(--muted); display: flex; gap: 0.9rem; margin-top: 0.25rem; }
+.legend span::before {
+  content: ""; display: inline-block; width: 10px; height: 10px;
+  border-radius: 2px; margin-right: 4px; vertical-align: -1px;
+}
+.legend .l-hold::before { background: var(--hold); }
+.legend .l-eot::before { background: rgba(22,163,74,0.4); }
+.legend .l-fired::before { background: var(--cutoff); }
+.legend .l-true::before { background: var(--eot); }
+
+@media (max-width: 820px) {
+  main { grid-template-columns: 1fr; }
+  #tune-panel, #curve-panel, #cutoffs-panel { grid-column: 1; grid-row: auto; }
+}

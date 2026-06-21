@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# turntune runtime cache (downloaded models, eot-bench data, materialized wavs, signal npz)
+.turntune_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
