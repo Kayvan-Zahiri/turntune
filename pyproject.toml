@@ -43,8 +43,8 @@ semantic = ["transformers", "torch"]
 turntune = "turntune.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/OWNER/turn-detection"
-Repository = "https://github.com/OWNER/turn-detection"
+Homepage = "https://github.com/Kayvan-Zahiri/turntune"
+Repository = "https://github.com/Kayvan-Zahiri/turntune"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/turntune"]

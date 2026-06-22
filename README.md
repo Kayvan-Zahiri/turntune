@@ -4,7 +4,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-[![CI](https://github.com/OWNER/turn-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/turn-detection/actions/workflows/ci.yml)
+[![CI](https://github.com/Kayvan-Zahiri/turntune/actions/workflows/ci.yml/badge.svg)](https://github.com/Kayvan-Zahiri/turntune/actions/workflows/ci.yml)
 
 ![turntune in action — dragging the silence slider moves the operating point along the latency-vs-cutoff curve while the caught-cutoff list updates live](docs/img/hero.gif)
 
@@ -43,8 +43,8 @@ you change the endpointing policy.
 ## 30-second quickstart
 
 ```bash
-git clone https://github.com/OWNER/turn-detection
-cd turn-detection
+git clone https://github.com/Kayvan-Zahiri/turntune
+cd turntune
 make run
 ```
 
