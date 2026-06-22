@@ -22,9 +22,7 @@ Turn-taking — deciding the moment the user is *done* speaking — is one of th
 highest-leverage quality problems in a voice agent. Endpoint **too early** and the
 agent talks over people mid-sentence. Endpoint **too late** and every exchange
 fills with awkward dead air. The two failure modes pull in opposite directions, so
-there's a real tradeoff to navigate — and today most teams navigate it *by ear*,
-nudging a silence timeout until the demo feels okay and then waiting for bug
-reports.
+there's a real tradeoff to navigate.
 
 `turntune` makes that tradeoff **measurable and tunable**. Point it at a turn
 detector and it shows you, over a set of real conversations: how often the detector
@@ -69,7 +67,7 @@ Three things are on screen:
   detector cut someone off, y = how much latency it added. **Lower-left is better** —
   few cutoffs *and* low latency. The blue line is the Pareto frontier (the best you can
   do); the red dot is your **current operating point**. The headline beneath it —
-  _"latency @ ≤10% cutoff: 1.0s"_ — is the lowest latency you can buy while staying
+  _"latency @ ≤10% cutoff: 1.04s"_ — is the lowest latency you can buy while staying
   under that cutoff budget.
 - **The knobs (top-right).** Drag a slider and the curve, the operating point, the
   counts, and the failure list all recompute live. Find the operating point you can
@@ -100,8 +98,9 @@ streaming.)
 
 ## The tuning knobs
 
-These map directly to the three knobs LiveKit's eot-bench sweeps, so the numbers are
-comparable. The arrows show what happens as you **increase** each knob.
+These are the same knobs LiveKit's eot-bench exposes, so a policy setting maps between
+the two (the eot-bench name is in parentheses). The arrows show what happens as you
+**increase** each knob.
 
 | Knob (eot-bench name) | What it does | Cutoffs | Latency |
 |---|---|---|---|
