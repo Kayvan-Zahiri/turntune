@@ -26,7 +26,7 @@ class MeanAbsDetector:
     def param_space(self):
         return {}
 
-    def extract(self, frames) -> FrameSignal:
+    def extract(self, frames, scenario=None) -> FrameSignal:
         vals = [float(np.mean(np.abs(np.asarray(f)))) for f in frames]
         return FrameSignal("", self.name, self.version, self.frame_ms, np.asarray(vals, np.float32))
 

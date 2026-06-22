@@ -42,7 +42,7 @@ class EnergyVadDetector:
             "min_silence_s": Axis(0.1, 1.5, 0.05, 0.6, "Silence before EOT"),
         }
 
-    def extract(self, frames: Iterable[np.ndarray]) -> FrameSignal:
+    def extract(self, frames: Iterable[np.ndarray], scenario=None) -> FrameSignal:
         # Per-frame RMS energy, squashed into [0, 1]. Causal: depends only on the
         # current frame. (A real model would carry state across frames.)
         probs = []

@@ -98,8 +98,11 @@ class SileroVadDetector:
             ),
         }
 
-    def extract(self, frames: Iterable[np.ndarray]) -> FrameSignal:
+    def extract(self, frames: Iterable[np.ndarray], scenario=None) -> FrameSignal:
         """Stream 20ms frames -> one speech probability per frame (causal).
+
+        Audio-only — `scenario` (clip context) is accepted for protocol parity and
+        ignored.
 
         Silero v5 expects each 512-sample window prepended with the previous window's
         last 64 samples (576 total); without that context it sees no speech.

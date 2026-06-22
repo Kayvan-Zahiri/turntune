@@ -36,7 +36,7 @@ class FakeDetector:
             "timeout_s": Axis(0.0, 5.0, 0.5, 0.0, "Force EOT timeout (0=off)"),
         }
 
-    def extract(self, frames) -> FrameSignal:
+    def extract(self, frames, scenario=None) -> FrameSignal:
         prob = self._prob if self._prob is not None else np.zeros(0, np.float32)
         return FrameSignal("", self.name, self.version, self.frame_ms, prob)
 

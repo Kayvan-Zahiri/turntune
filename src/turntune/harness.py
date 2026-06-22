@@ -43,7 +43,7 @@ def run_detector(
         sig = cache.get(key) if cache is not None else None
         if sig is None:
             frames = iter_frames(sc.audio, sc.sample_rate, detector.frame_ms, pace=pace)
-            raw = detector.extract(frames)
+            raw = detector.extract(frames, sc)
             # Stamp the scenario id (extract() returns it blank) — FrameSignal is frozen.
             sig = FrameSignal(
                 sc.id, detector.name, detector.version, detector.frame_ms, raw.speech_prob
