@@ -1,6 +1,6 @@
 """Defaults and run configuration — the single source of constants.
 
-No logic lives here; just values (some marked TODO to confirm during implementation).
+No logic lives here; just values.
 """
 
 from __future__ import annotations
@@ -29,8 +29,9 @@ SILERO_ONNX_URL = (
 SILERO_ONNX_SHA256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"
 
 # --- Scoring -----------------------------------------------------------------
-# Tolerance (s) around true_eot_s: firing earlier than this is a cutoff.
-DEFAULT_TOLERANCE_S = 0.2  # TODO(step 2-3): tune against eot-bench span semantics
+# Grace margin (s): a fire earlier than (true_eot_s - this) counts as a cutoff. Keeps a
+# fire that lands just inside the trailing silence from being penalized as a talk-over.
+DEFAULT_TOLERANCE_S = 0.2
 
 # --- Sweep -------------------------------------------------------------------
 # Default Pareto sweep axis (the knob varied along the curve). The detector's

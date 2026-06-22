@@ -4,14 +4,15 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-<!-- TODO(step 5): add CI badge once the repo is public -->
+[![CI](https://github.com/OWNER/turn-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/turn-detection/actions/workflows/ci.yml)
 
-![turntune — the latency-vs-cutoff curve, tuning sliders, and a playable list of caught cutoffs](docs/img/screenshot.png)
+![turntune in action — dragging the silence slider moves the operating point along the latency-vs-cutoff curve while the caught-cutoff list updates live](docs/img/hero.gif)
 
-> Silero VAD over 60 eot-bench scenarios: the tradeoff curve with the live operating
-> point, the tuning knobs, and every conversation it cut off — each with a timeline
-> (gray = mid-turn pause, green = true end of turn, red = where it fired) and audio you
-> can play.
+> Silero VAD over 40 eot-bench conversations. Drag **Silence before EOT** and the whole
+> curve, the red operating-point marker (here sliding from 60% cutoff toward 30%), the
+> live counts, and the caught-cutoff list all recompute in milliseconds. Each cutoff has
+> a timeline — gray = mid-turn pause, green = true end of turn, red = where it fired —
+> and audio you can play to hear the talk-over.
 
 ---
 
@@ -36,10 +37,8 @@ you change the endpointing policy.
   number, _"latency at ≤X% cutoff."_
 - 🔊 **A playable list of the conversations it cut off** — hear the talk-over for
   yourself instead of guessing.
-- 🎚️ **Live tuning knobs** — drag the silence / confidence / min-delay sliders and
+- 🎚️ **Live tuning knobs** — drag the silence / confidence / timeout sliders and
   watch the curve and the failure list update instantly.
-
-<!-- TODO(step 5): three thumbnails, one per bullet above. -->
 
 ## 30-second quickstart
 
@@ -57,10 +56,28 @@ scenarios, then opens **http://localhost:8000**.
 No GPU, no API keys, no account. Everything runs locally.
 
 > No Hugging Face access or want to try it instantly offline? `turntune serve --dataset fixtures`
-> runs against a tiny bundled scenario set.
+> runs against a tiny bundled scenario set (a structural smoke test — synthetic audio,
+> so no real cutoffs; the real evaluation uses eot-bench).
 
-<!-- TODO(step 5): screenshot walkthrough — reading the curve, picking an operating
-     point, the "latency at ≤X% cutoff" summary, hearing a caught cutoff. -->
+## Reading the results
+
+![Reading the turntune UI: the tradeoff curve, the tuning knobs, and the caught-cutoff list](docs/img/screenshot.png)
+
+Three things are on screen:
+
+- **The curve (top-left).** Every point is one policy setting: x = how often the
+  detector cut someone off, y = how much latency it added. **Lower-left is better** —
+  few cutoffs *and* low latency. The blue line is the Pareto frontier (the best you can
+  do); the red dot is your **current operating point**. The headline beneath it —
+  _"latency @ ≤10% cutoff: 1.0s"_ — is the lowest latency you can buy while staying
+  under that cutoff budget.
+- **The knobs (top-right).** Drag a slider and the curve, the operating point, the
+  counts, and the failure list all recompute live. Find the operating point you can
+  live with, then read off the threshold.
+- **The caught cutoffs (below).** Every conversation the detector talked over, under the
+  current policy. Each timeline shows the mid-turn pauses (gray), the true end of turn
+  (green), and where the detector fired (red) — with an audio player so you can *hear*
+  the talk-over.
 
 ## How it works
 
@@ -77,9 +94,9 @@ neural model over the audio exactly once and caches a per-frame signal, and a
 **cheap, pure `decide()`** that turns that signal + your tuning knobs into an
 end-of-turn decision. Because tuning only re-runs the cheap half over cached
 signals, the whole sweep recomputes in milliseconds — so the curve feels live as
-you drag a slider.
-
-<!-- TODO(step 3+): expand once the harness + metrics land. -->
+you drag a slider. (Audio is streamed in 20 ms frames; decision times come from the
+frame index, not the wall clock, so the fast sweep gives the same answer as real-time
+streaming.)
 
 ## The tuning knobs
 
@@ -94,11 +111,18 @@ comparable. The arrows show what happens as you **increase** each knob.
 
 ## How the metrics are defined
 
-A **cutoff** is the detector firing during a *mid-turn pause* (a `hold` span)
-before the true end of turn. **Latency** is how long after the true end of turn the
-detector takes to fire. The **Pareto frontier** is the set of policy settings where
-you can't reduce one without increasing the other. See
-[`docs/metrics.md`](./docs/metrics.md) for precise definitions.
+- **Cutoff (false endpoint):** the detector declared end-of-turn during a *mid-turn
+  pause*, before the user was actually done. The **cutoff rate** is the fraction of
+  conversations where that happens.
+- **Latency:** how long *after* the true end of turn the detector took to fire,
+  measured on the audio timeline (conversational dead air) — not compute time. A model
+  that waits 600 ms to be sure still shows 600 ms of latency.
+- **Pareto frontier:** the settings where you can't lower one without raising the
+  other. The summary reports the best latency at each cutoff budget (e.g. ≤10%).
+
+Ground truth comes straight from eot-bench: the **final** silence in each clip is the
+true end of turn; every **earlier** silence is a mid-turn hold. Full definitions in
+[`docs/metrics.md`](./docs/metrics.md).
 
 ## Adding your own detector
 
@@ -115,15 +139,19 @@ default; custom and synthetic scenario sets are a clean drop-in later.)
 
 ## Configuration
 
-<!-- TODO(step 4): finalize flags once the CLI lands. -->
-
 ```
-turntune serve [--detector silero-vad] [--dataset eot-bench|fixtures]
-               [--language en] [--limit 100] [--realtime]
-               [--port 8000] [--no-browser]
+turntune serve    # default: launch the local web UI
+turntune run      # headless: print the curve + operating points
+turntune sweep    # headless: write the full sweep to JSON (--out sweep.json)
 ```
 
-The runtime cache lives in `.turntune_cache/`. Wipe it with `rm -rf .turntune_cache`.
+Common flags (any subcommand): `--detector silero-vad`, `--dataset eot-bench|fixtures`,
+`--language en`, `--limit 100`, `--sweep-axis min_silence_s`. `serve` also takes
+`--port 8000`, `--open` (open a browser), and `--realtime` (stream at mic pace — demo
+fidelity; off for sweeps).
+
+The runtime cache (downloaded model, eot-bench subset, per-frame signals) lives in
+`.turntune_cache/`. Wipe it with `rm -rf .turntune_cache`.
 
 ## Roadmap / out of scope for v0
 

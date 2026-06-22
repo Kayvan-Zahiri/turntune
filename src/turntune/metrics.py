@@ -18,9 +18,10 @@ from .types import FrameSignal, PolicyParams, Scenario, ScenarioResult, SweepPoi
 
 
 class MetricsEngine:
-    def __init__(self, tol_s: float = 0.1):
+    def __init__(self, tol_s: float = 0.2):
         # A fire earlier than (true_eot_s - tol) is a cutoff; tol is a small grace
         # margin around the boundary between the last hold and the trailing silence.
+        # Matches config.DEFAULT_TOLERANCE_S (the value the CLI/UI use).
         self.tol = tol_s
 
     def score_one(
