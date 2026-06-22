@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff==0.15.18"]
 # Documented seam only — NOT installed by default and NOT built in v0. A future
 # LiveKit-style semantic end-of-turn model would live behind this extra.
 semantic = ["transformers", "torch"]
