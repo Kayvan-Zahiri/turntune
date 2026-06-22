@@ -145,11 +145,23 @@ def cmd_run(args) -> int:
             f"  {args.sweep_axis}={p.params[args.sweep_axis]:.2f} -> "
             f"cutoff={cut:4.0f}%  p50={lat}  no_fire={nof:3.0f}%"
         )
-    print("\noperating points:")
+
+    def _op(label, max_cutoff, max_no_fire):
+        p = eng.best_point(pts, max_cutoff=max_cutoff, max_no_fire=max_no_fire)
+        if p is None:
+            print(f"  {label}:  unreachable")
+        else:
+            print(
+                f"  {label}:  latency {p.p50_latency_s:.2f}s  "
+                f"(cutoff {p.cutoff_rate * 100:.0f}%, no-fire {p.no_fire_rate * 100:.0f}%)"
+            )
+
+    print("\noperating points (best latency at each cutoff budget; no-fire shown):")
     for b in (0.05, 0.10, 0.20, 0.30):
-        lat = eng.latency_at_cutoff(pts, b)
-        shown = f"{lat:.2f}s" if lat is not None else "unreachable"
-        print(f"  latency @ <= {int(b * 100):>2}% cutoff: {shown}")
+        _op(f"<= {int(b * 100):>2}% cutoff", b, 1.0)
+    print("\noperating points (no-fire bounded <= 5% so cutoffs can't hide in silence):")
+    for b in (0.05, 0.10, 0.20, 0.30):
+        _op(f"<= {int(b * 100):>2}% cutoff & <= 5% no-fire", b, 0.05)
     return 0
 
 

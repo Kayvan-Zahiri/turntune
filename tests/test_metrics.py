@@ -6,6 +6,7 @@ import numpy as np
 
 from conftest import FakeDetector, make_signal
 from turntune.metrics import MetricsEngine
+from turntune.policy import silence_hangover
 from turntune.types import Scenario, SweepPoint
 
 
@@ -127,3 +128,32 @@ def test_pareto_and_latency_at_cutoff():
     # "latency at ≤10% cutoff" -> the 0.6 operating point.
     assert MetricsEngine.latency_at_cutoff(pts, 0.10) == 0.6
     assert MetricsEngine.latency_at_cutoff(pts, 0.0) is None
+
+
+def _sp(cutoff, lat, no_fire):
+    return SweepPoint(
+        {}, cutoff_rate=cutoff, p50_latency_s=lat, p90_latency_s=lat, no_fire_rate=no_fire, n=10
+    )
+
+
+def test_best_point_bounds_no_fire():
+    # A tempting low-cutoff/low-latency point that only achieves it by NOT firing (20%
+    # no-fire) vs an honest point at higher latency but low no-fire.
+    pts = [_sp(0.05, 0.30, 0.20), _sp(0.08, 0.60, 0.02)]
+    # cutoff-only: the gamed 0.30s point wins...
+    assert MetricsEngine.latency_at_cutoff(pts, 0.10) == 0.30
+    # ...but once no-fire is bounded <=5%, it is excluded -> the honest 0.60s point.
+    assert MetricsEngine.latency_at(pts, 0.10, 0.05) == 0.60
+    bp = MetricsEngine.best_point(pts, 0.10, 0.05)
+    assert bp.p50_latency_s == 0.60 and bp.no_fire_rate <= 0.05
+
+
+def test_silence_hangover_timeout_forces_fire():
+    # 10 speech frames then 40 silence frames (0.8s of trailing silence).
+    sig = make_signal(np.array([1.0] * 10 + [0.0] * 40, dtype=np.float32))
+    base = {"speech_threshold": 0.5, "min_silence_s": 1.0}  # needs 1.0s silence -> not enough
+    assert silence_hangover(sig, base).fired is False
+    # timeout forces an end-of-turn after 0.4s of silence (20 frames after last speech).
+    d = silence_hangover(sig, {**base, "timeout_s": 0.4})
+    assert d.fired is True
+    assert abs(d.eot_s - 0.60) < 1e-6  # last speech idx 9 + 20 frames -> idx 29 -> 0.60s

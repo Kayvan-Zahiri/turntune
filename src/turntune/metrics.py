@@ -100,16 +100,37 @@ class MetricsEngine:
         return front
 
     @staticmethod
-    def latency_at_cutoff(points: list[SweepPoint], max_rate: float) -> float | None:
-        """The headline: lowest p50 latency achievable at or below `max_rate` cutoff."""
-        candidates = [
-            p.p50_latency_s
+    def best_point(
+        points: list[SweepPoint], max_cutoff: float = 1.0, max_no_fire: float = 1.0
+    ) -> SweepPoint | None:
+        """Lowest-latency operating point within BOTH a cutoff and a no-fire ceiling.
+
+        Bounding no-fire alongside cutoff is what makes the headline ungameable: a policy
+        can't lower its cutoff rate just by refusing to take the floor (a no-fire — the
+        agent hanging in silence — is a failure too, not a smaller error than a cutoff).
+        """
+        cands = [
+            p
             for p in points
             if not math.isnan(p.p50_latency_s)
             and not math.isnan(p.cutoff_rate)
-            and p.cutoff_rate <= max_rate
+            and p.cutoff_rate <= max_cutoff
+            and p.no_fire_rate <= max_no_fire
         ]
-        return min(candidates) if candidates else None
+        return min(cands, key=lambda p: p.p50_latency_s) if cands else None
+
+    @staticmethod
+    def latency_at(
+        points: list[SweepPoint], max_cutoff: float = 1.0, max_no_fire: float = 1.0
+    ) -> float | None:
+        """Lowest p50 latency within a cutoff AND a no-fire ceiling (None if unreachable)."""
+        p = MetricsEngine.best_point(points, max_cutoff, max_no_fire)
+        return p.p50_latency_s if p else None
+
+    @staticmethod
+    def latency_at_cutoff(points: list[SweepPoint], max_rate: float) -> float | None:
+        """Lowest p50 latency at or below `max_rate` cutoff (no no-fire constraint)."""
+        return MetricsEngine.latency_at(points, max_rate, 1.0)
 
     @staticmethod
     def caught_cutoffs(results: list[ScenarioResult]) -> list[ScenarioResult]:
