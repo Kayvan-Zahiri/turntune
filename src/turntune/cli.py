@@ -28,7 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command")
 
     def add_common(sp: argparse.ArgumentParser) -> None:
-        sp.add_argument("--detector", default=DEFAULT_DETECTOR, help="detector adapter name")
+        sp.add_argument(
+            "--detector",
+            default=DEFAULT_DETECTOR,
+            help="detector adapter name; comma-separated to load several (UI can switch)",
+        )
         sp.add_argument(
             "--dataset",
             "--loader",
@@ -77,7 +81,7 @@ def _build_state(args):
     from .harness import run_detector
     from .metrics import MetricsEngine
     from .scenarios.registry import create as make_loader
-    from .server.app import AppState
+    from .server.app import AppState, DetectorState
 
     loader = make_loader(args.loader)
     print(
@@ -89,15 +93,22 @@ def _build_state(args):
             "No scenarios loaded. Try --dataset fixtures, or check the dataset/language."
         )
 
-    detector = make_detector(args.detector)
+    # --detector may be a comma-separated list (e.g. "silero-vad,semantic-turn") to load
+    # several detectors and switch between them live in the UI. The first is the default.
+    names = [n.strip() for n in args.detector.split(",") if n.strip()]
     cache = SignalCache(config.cache_dir())
     pace = "realtime" if getattr(args, "realtime", False) else "fast"
-    signals = run_detector(scenarios, detector, cache, pace=pace, progress=True)
+    detectors = {}
+    for name in names:
+        det = make_detector(name)
+        print(f"Preparing detector '{name}' ...")
+        sigs = run_detector(scenarios, det, cache, pace=pace, progress=True)
+        detectors[name] = DetectorState(detector=det, signals=sigs)
 
     return AppState(
         scenarios=scenarios,
-        signals=signals,
-        detector=detector,
+        detectors=detectors,
+        default_detector=names[0],
         metrics=MetricsEngine(config.DEFAULT_TOLERANCE_S),
         sweep_axis=args.sweep_axis,
         dataset=args.loader,
@@ -108,8 +119,9 @@ def _build_state(args):
 def _sweep_points(state, sweep_axis):
     from .sweep import build_grid
 
-    grid = build_grid(state.detector, sweep_axis, state.detector.default_params())
-    return state.metrics.sweep(state.signals, state.scenarios, state.detector, grid)
+    ds = state.detectors[state.default_detector]
+    grid = build_grid(ds.detector, sweep_axis, ds.detector.default_params())
+    return state.metrics.sweep(ds.signals, state.scenarios, ds.detector, grid)
 
 
 def cmd_serve(args) -> int:
@@ -125,7 +137,7 @@ def cmd_serve(args) -> int:
     url = f"http://127.0.0.1:{args.port}"
     print(
         f"\nturntune serving at {url}  "
-        f"({len(state.scenarios)} scenarios, detector={state.detector.name})\n"
+        f"({len(state.scenarios)} scenarios, detectors={list(state.detectors)})\n"
     )
     if args.open_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
@@ -170,7 +182,7 @@ def cmd_sweep(args) -> int:
     eng = state.metrics
     pts = _sweep_points(state, args.sweep_axis)
     out = {
-        "detector": state.detector.name,
+        "detector": state.default_detector,
         "dataset": args.loader,
         "language": args.language,
         "n_scenarios": len(state.scenarios),

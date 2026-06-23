@@ -18,12 +18,18 @@
     <main>
       <section id="curve-panel" class="panel">
         <h2>Latency vs. cutoff</h2>
+        <div id="oppoint" class="stats"><!-- current operating point: cutoff / latency / no-fire --></div>
         <div id="chart"></div>
+        <div id="legend-note" class="muted small"></div>
         <div id="summary"></div>
       </section>
 
       <section id="tune-panel" class="panel">
         <h2>Tuning</h2>
+        <div class="field">
+          <label for="detector-select">Detector</label>
+          <select id="detector-select"></select>
+        </div>
         <div class="field">
           <label for="sweep-axis">Sweep axis (the curve)</label>
           <select id="sweep-axis"></select>

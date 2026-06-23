@@ -1,14 +1,15 @@
 """FastAPI app: serves the static UI and a small JSON API on a single port.
 
 Endpoints:
-  GET  /api/meta        detector param_space (-> sliders), scenario count, status
-  POST /api/sweep       {params, sweep_axis} -> grid points + pareto + summary
-  POST /api/score       {params} -> per-scenario counts + caught-cutoff list
+  GET  /api/meta        available detectors + their param_spaces, status, no-fire bound
+  POST /api/sweep       {detector, params, sweep_axis} -> grid points + pareto + summary
+  POST /api/score       {detector, params} -> per-scenario counts + caught-cutoff list
   GET  /api/audio/{id}  wav for browser playback (Range-enabled via FileResponse)
   GET  /                static single-page UI (no build step)
 
-Cached signals are held in memory, so /sweep and /score round-trip in milliseconds and
-the curve updates live as sliders move.
+Cached signals are held in memory (one set per loaded detector), so /sweep and /score
+round-trip in milliseconds and the curve updates live as sliders move or the detector
+is switched.
 """
 
 import math
@@ -25,6 +26,9 @@ from ..types import FrameSignal, Scenario
 
 STATIC_DIR = Path(__file__).parent / "static"
 CUTOFF_BUDGETS = [0.05, 0.10, 0.20, 0.30]
+# A no-fire (the agent never taking the floor) is a failure too, not a smaller error
+# than a cutoff. Operating points above this bound are flagged everywhere.
+NO_FIRE_BOUND = 0.05
 
 
 def _nn(x: float | None) -> float | None:
@@ -35,14 +39,21 @@ def _nn(x: float | None) -> float | None:
 
 
 @dataclass
+class DetectorState:
+    detector: Detector
+    signals: dict[str, FrameSignal]
+
+
+@dataclass
 class AppState:
     scenarios: list[Scenario]
-    signals: dict[str, FrameSignal]
-    detector: Detector
+    detectors: dict[str, DetectorState]  # name -> state (one signal set per detector)
+    default_detector: str
     metrics: MetricsEngine
     sweep_axis: str = config.DEFAULT_SWEEP_AXIS
     dataset: str = "eot-bench"
     language: str = config.DEFAULT_LANGUAGE
+    no_fire_bound: float = NO_FIRE_BOUND
     _by_id: dict[str, Scenario] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -52,14 +63,37 @@ class AppState:
         d = sc.meta.get("duration")
         return float(d) if d else len(sc.audio) / sc.sample_rate
 
+    def resolve(self, name: str | None) -> DetectorState:
+        return (
+            self.detectors.get(name or self.default_detector)
+            or self.detectors[self.default_detector]
+        )
+
+
+def _axes(det: Detector) -> list[dict]:
+    return [
+        {
+            "name": n,
+            "lo": ax.lo,
+            "hi": ax.hi,
+            "step": ax.step,
+            "default": ax.default,
+            "label": ax.label,
+            "help": ax.help,
+        }
+        for n, ax in det.param_space().items()
+    ]
+
 
 class ScoreBody(BaseModel):
     params: dict
+    detector: str | None = None
 
 
 class SweepBody(BaseModel):
     params: dict
     sweep_axis: str | None = None
+    detector: str | None = None
 
 
 def create_app(state: AppState):
@@ -68,44 +102,41 @@ def create_app(state: AppState):
     from fastapi.staticfiles import StaticFiles
 
     app = FastAPI(title="turntune")
-    det = state.detector
     eng = state.metrics
 
     @app.get("/api/meta")
     def meta():
         return {
-            "detector": det.name,
             "dataset": state.dataset,
             "language": state.language,
             "n_scenarios": len(state.scenarios),
             "sweep_axis": state.sweep_axis,
             "cutoff_budgets": CUTOFF_BUDGETS,
-            "defaults": det.default_params(),
-            "axes": [
-                {
-                    "name": name,
-                    "lo": ax.lo,
-                    "hi": ax.hi,
-                    "step": ax.step,
-                    "default": ax.default,
-                    "label": ax.label,
-                    "help": ax.help,
-                }
-                for name, ax in det.param_space().items()
-            ],
+            "no_fire_bound": state.no_fire_bound,
+            "default_detector": state.default_detector,
+            "detectors": {
+                name: {"axes": _axes(ds.detector), "defaults": ds.detector.default_params()}
+                for name, ds in state.detectors.items()
+            },
         }
 
     @app.post("/api/sweep")
     def sweep(body: SweepBody):
+        ds = state.resolve(body.detector)
+        det, sigs = ds.detector, ds.signals
         axis = body.sweep_axis or state.sweep_axis
         grid = build_grid(det, axis, body.params)
-        pts = eng.sweep(state.signals, state.scenarios, det, grid)
-        front = eng.pareto(pts)
+        pts = eng.sweep(sigs, state.scenarios, det, grid)
+        # Pareto over only the operating points that respect the no-fire bound, so the
+        # frontier can't be a low-cutoff point that's actually bought by silence.
+        within = [p for p in pts if p.no_fire_rate <= state.no_fire_bound]
+        front = eng.pareto(within)
         current = eng._aggregate(
-            body.params, eng.score_all(state.signals, state.scenarios, det, body.params)
+            body.params, eng.score_all(sigs, state.scenarios, det, body.params)
         )
         return {
             "sweep_axis": axis,
+            "no_fire_bound": state.no_fire_bound,
             "points": [
                 {
                     "x": _nn(p.params.get(axis)),
@@ -124,14 +155,17 @@ def create_app(state: AppState):
                 "p90": _nn(current.p90_latency_s),
                 "no_fire": _nn(current.no_fire_rate),
             },
+            # headline is no-fire-bounded: best latency at <=X% cutoff AND <=Y% no-fire
             "summary": {
-                str(int(b * 100)): _nn(eng.latency_at_cutoff(pts, b)) for b in CUTOFF_BUDGETS
+                str(int(b * 100)): _nn(eng.latency_at(pts, b, state.no_fire_bound))
+                for b in CUTOFF_BUDGETS
             },
         }
 
     @app.post("/api/score")
     def score(body: ScoreBody):
-        results = eng.score_all(state.signals, state.scenarios, det, body.params)
+        ds = state.resolve(body.detector)
+        results = eng.score_all(ds.signals, state.scenarios, ds.detector, body.params)
         counts = {
             k: sum(1 for r in results if r.klass == k) for k in ("correct", "cutoff", "missed")
         }
